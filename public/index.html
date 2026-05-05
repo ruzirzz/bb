@@ -19,6 +19,7 @@
   --cyan: #5dd8f5;
   --green: #42e08a;
   --red: #f56060;
+  --red-hover: #ff7a7a;
   --text: #eceaf6;
   --t2: #a9a6be;
   --mono: 'JetBrains Mono', monospace;
@@ -77,12 +78,14 @@ textarea { min-height: 140px; resize: vertical; line-height: 1.6; }
 input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 
 /* Buttons */
-.btn { background: var(--accent); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-family: var(--mono); font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; box-shadow: 0 4px 15px rgba(139, 127, 240, 0.2); }
+.btn { background: var(--accent); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-family: var(--mono); font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; box-shadow: 0 4px 15px rgba(139, 127, 240, 0.2); }
 .btn:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 127, 240, 0.3); }
 .btn:active { transform: translateY(0); }
 .btn:disabled { background: var(--t2); cursor: not-allowed; box-shadow: none; transform: none; }
 .btn-secondary { background: var(--s2); border: 1px solid var(--b2); color: var(--text); box-shadow: none; }
 .btn-secondary:hover { background: var(--s3); border-color: var(--b1); }
+.btn-danger { background: var(--red); box-shadow: 0 4px 15px rgba(245, 96, 96, 0.2); }
+.btn-danger:hover { background: var(--red-hover); box-shadow: 0 6px 20px rgba(245, 96, 96, 0.3); }
 
 /* Extractor Results */
 .result-card { background: var(--s2); border: 1px solid var(--b1); border-left: 3px solid var(--green); border-radius: 10px; padding: 16px; margin-bottom: 12px; font-size: 12px; transition: 0.2s; }
@@ -93,6 +96,9 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 /* Config Database Section */
 .db-config { background: linear-gradient(145deg, rgba(0,0,0,0.3), rgba(14,14,24,0.6)); padding: 24px; border-radius: 12px; border: 1px dashed rgba(139, 127, 240, 0.3); margin-bottom: 30px; }
 .db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+
+/* Group Buttons untuk Edit/Hapus */
+.action-buttons { display: flex; gap: 12px; margin-top: 20px; }
 </style>
 </head>
 <body>
@@ -119,7 +125,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
   </a>
   <a class="menu-item" onclick="switchView('edit', this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-    Edit Database
+    Edit & Hapus Map
   </a>
 </div>
 
@@ -137,7 +143,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
         <textarea id="rawInput" placeholder="Paste data Lua yang berisi CFrame.new() di sini..."></textarea>
       </div>
       
-      <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+      <div class="action-buttons" style="margin-bottom: 24px;">
         <button class="btn" onclick="extractCFrames()">Mulai Ekstrak</button>
         <button class="btn btn-secondary" onclick="document.getElementById('rawInput').value=''; document.getElementById('extractorResults').innerHTML=''">Bersihkan</button>
       </div>
@@ -157,7 +163,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
       <!-- Config Section -->
       <div class="db-config">
-        <label style="color: var(--cyan); margin-bottom: 12px;">Konfigurasi API Database (Tersimpan Lokal)</label>
+        <label style="color: var(--cyan); margin-bottom: 12px;">Konfigurasi API Server (Tersimpan Lokal)</label>
         <input type="password" id="ghToken" placeholder="Akses Token (PAT)" style="margin-bottom: 12px;">
         <div class="db-grid">
           <input type="text" id="ghOwner" placeholder="Username / Owner">
@@ -189,15 +195,15 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
         <input type="text" id="addSkyCFrame" placeholder="CFrame.new(...)">
       </div>
 
-      <button class="btn" id="btnAddSubmit" onclick="addMapToGitHub()">Simpan ke Database</button>
+      <button class="btn" id="btnAddSubmit" style="margin-top: 10px;" onclick="addMapToGitHub()">Simpan ke Database</button>
     </div>
   </div>
 
-  <!-- ================= VIEW 3: EDIT DATABASE ================= -->
+  <!-- ================= VIEW 3: EDIT & HAPUS DATABASE ================= -->
   <div id="view-edit" class="view-section">
     <div class="panel">
       <div class="panel-header">
-        <h2>Edit <span>Database Map</span></h2>
+        <h2>Edit / Hapus <span>Map</span></h2>
       </div>
 
       <button class="btn btn-secondary" id="btnLoadDb" style="margin-bottom: 24px;" onclick="loadDatabaseFromGitHub()">Sinkronisasi & Muat Data</button>
@@ -224,7 +230,10 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
           </div>
         </div>
 
-        <button class="btn" id="btnEditSubmit" onclick="updateMapToGitHub()">Perbarui Map</button>
+        <div class="action-buttons">
+          <button class="btn" id="btnEditSubmit" onclick="updateMapToGitHub()">Perbarui Map</button>
+          <button class="btn btn-danger" id="btnDeleteSubmit" onclick="deleteMapFromGitHub()">Hapus Map</button>
+        </div>
       </div>
     </div>
   </div>
@@ -238,16 +247,10 @@ function toggleMenu() {
 }
 
 function switchView(viewName, element) {
-  // Sembunyikan semua section
   document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-  // Hapus highlight dari semua menu
   document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-  
-  // Tampilkan yang dipilih
   document.getElementById('view-' + viewName).classList.add('active');
   element.classList.add('active');
-  
-  // Tutup sidebar di tampilan mobile
   document.getElementById('sidebar').classList.remove('active');
 }
 
@@ -257,7 +260,7 @@ function copyInput(elementId) {
   if (el && el.value) {
     navigator.clipboard.writeText(el.value).then(() => {
       const prevColor = el.style.borderColor;
-      el.style.borderColor = "var(--green)"; // Feedback sukses copy
+      el.style.borderColor = "var(--green)";
       setTimeout(() => el.style.borderColor = prevColor, 1000);
     });
   } else {
@@ -287,7 +290,6 @@ function extractCFrames() {
     if (getContext(raw, match.index).indexOf("Teleporter") !== -1) {
       count++;
       let fullCframe = match[0];
-      // Escape petik ganda agar tidak error di HTML onClick
       let escapedCframe = fullCframe.replace(/"/g, '&quot;').replace(/'/g, "\\'"); 
       
       resultsDiv.innerHTML += `
@@ -356,7 +358,7 @@ async function addMapToGitHub() {
     newEntry += `    },`;
 
     const anchor = "TeleportModule.mapSpots = {";
-    if (!data.content.includes(anchor)) throw new Error("Format file tp.lua tidak dikenali. Pastikan struktur awalnya benar.");
+    if (!data.content.includes(anchor)) throw new Error("Format file tp.lua tidak dikenali.");
     
     const updatedContent = data.content.replace(anchor, anchor + newEntry);
 
@@ -382,7 +384,7 @@ async function addMapToGitHub() {
   }
 }
 
-// --- View 3: Edit Database ---
+// --- View 3: Edit & Hapus Database ---
 let dbState = { content: "", sha: "", maps: {} };
 
 async function loadDatabaseFromGitHub() {
@@ -404,7 +406,6 @@ async function loadDatabaseFromGitHub() {
     const select = document.getElementById('editMapSelect');
     select.innerHTML = '<option value="">-- Pilih Map yang Ingin Diedit --</option>';
 
-    // Regex parsing block data map
     const mapRegex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
     let match;
     while((match = mapRegex.exec(data.content)) !== null) {
@@ -448,7 +449,9 @@ async function updateMapToGitHub() {
   if(!mapName) return alert("Pilih map terlebih dahulu di dropdown!");
 
   const btn = document.getElementById('btnEditSubmit');
-  btn.innerText = "Menyimpan Perubahan..."; btn.disabled = true;
+  const btnDel = document.getElementById('btnDeleteSubmit');
+  btn.innerText = "Menyimpan..."; btn.disabled = true;
+  btnDel.disabled = true;
 
   try {
     let newBlock = `["${mapName}"] = {\n`;
@@ -470,11 +473,59 @@ async function updateMapToGitHub() {
     }
 
     alert(`Sukses! Map [${mapName}] berhasil diperbarui.`);
-    await loadDatabaseFromGitHub(); // Sinkron ulang
+    await loadDatabaseFromGitHub();
   } catch (err) {
     alert("Gagal mengupdate: " + err.message);
   } finally {
     btn.innerText = "Perbarui Map"; btn.disabled = false;
+    btnDel.disabled = false;
+  }
+}
+
+// Fitur Hapus Map
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function deleteMapFromGitHub() {
+  const mapName = document.getElementById('editMapSelect').value;
+  if(!mapName) return alert("Pilih map terlebih dahulu di dropdown!");
+
+  // Validasi pop-up konfirmasi
+  if(!confirm(`Apakah kamu yakin ingin menghapus map "${mapName}" secara permanen dari database?`)) return;
+
+  const btn = document.getElementById('btnEditSubmit');
+  const btnDel = document.getElementById('btnDeleteSubmit');
+  btn.disabled = true;
+  btnDel.innerText = "Menghapus..."; btnDel.disabled = true;
+
+  try {
+    // Escape string block, tambahkan regex untuk mendeteksi koma dan spasi kosong di belakangnya agar rapi
+    let regexStr = escapeRegExp(dbState.maps[mapName].fullBlock) + "\\s*,?";
+    let updatedContent = dbState.content.replace(new RegExp(regexStr, 'g'), "");
+
+    const postRes = await fetch('/api/github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: updatedContent, sha: dbState.sha, message: `Update Database: Hapus Map [${mapName}]` })
+    });
+
+    if (!postRes.ok) {
+        let errData = await postRes.json().catch(()=>({}));
+        throw new Error(errData.error || "Gagal Menghapus dari Database.");
+    }
+
+    alert(`Sukses! Map [${mapName}] berhasil dihapus.`);
+    
+    // Kosongkan form dan sinkron ulang
+    document.getElementById('editFarCFrame').value = '';
+    document.getElementById('editSkyCFrame').value = '';
+    await loadDatabaseFromGitHub();
+  } catch (err) {
+    alert("Gagal menghapus: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btnDel.innerText = "Hapus Map"; btnDel.disabled = false;
   }
 }
 </script>
