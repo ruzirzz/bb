@@ -1,45 +1,52 @@
-// Simpan sebagai server.js
 const express = require('express');
-const app = express();
 const cors = require('cors');
 
+const app = express();
 app.use(cors());
 app.use(express.json());
-// Menyajikan file HTML statis (pastikan file index.html ada di folder 'public')
-app.use(express.static('public')); 
+app.use(express.static('public'));
 
-const GITHUB_API_URL = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${process.env.GITHUB_PATH}`;
-const HEADERS = {
-    'Authorization': `token ${process.env.GITHUB_TOKEN}`,
-    'Accept': 'application/vnd.github.v3+json',
-    'User-Agent': 'NodeJS-Railway-App'
-};
-
-// Endpoint untuk mengambil data tp.lua dari GitHub
+// Endpoint untuk MENGAMBIL data (Load Database)
 app.get('/api/github', async (req, res) => {
     try {
-        const response = await fetch(GITHUB_API_URL, { headers: HEADERS });
-        if (!response.ok) throw new Error('Gagal mengambil data dari GitHub');
+        const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${process.env.GITHUB_PATH}`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Railway-Node-App'
+            }
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`GitHub API Error (${response.status}): ${errText}`);
+        }
         
         const data = await response.json();
-        // Decode dari base64
         const content = Buffer.from(data.content, 'base64').toString('utf-8');
         res.json({ content, sha: data.sha });
     } catch (error) {
+        console.error("GET Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Endpoint untuk melakukan commit / save ke GitHub
+// Endpoint untuk MENYIMPAN data (Commit)
 app.post('/api/github', async (req, res) => {
     try {
         const { content, sha, message } = req.body;
-        // Encode kembali ke base64
+        const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${process.env.GITHUB_PATH}`;
         const encodedContent = Buffer.from(content, 'utf-8').toString('base64');
         
-        const response = await fetch(GITHUB_API_URL, {
+        const response = await fetch(url, {
             method: 'PUT',
-            headers: HEADERS,
+            headers: {
+                'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Railway-Node-App'
+            },
             body: JSON.stringify({
                 message: message,
                 content: encodedContent,
@@ -47,9 +54,13 @@ app.post('/api/github', async (req, res) => {
             })
         });
 
-        if (!response.ok) throw new Error('Gagal menyimpan ke GitHub');
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`GitHub API Error (${response.status}): ${errText}`);
+        }
         res.json({ success: true });
     } catch (error) {
+        console.error("POST Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
