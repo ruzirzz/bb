@@ -76,32 +76,63 @@ function extractCFrames() {
   resultsDiv.innerHTML = '';
   if (!raw.trim()) return showToast('Teks tidak boleh kosong!', 'error');
 
-  const pat = /CFrame\.new\(([^)]+)\)/g;
-  let match;
-  let count = 0;
+  const btn = document.querySelector('[onclick="extractCFrames()"]');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Mengekstrak...';
+  btn.disabled = true;
 
-  while ((match = pat.exec(raw)) !== null) {
-    if (getContext(raw, match.index).indexOf("Teleporter") !== -1) {
-      count++;
-      let fullCframe = match[0];
-      let escaped = fullCframe.replace(/'/g, "\\'");
+  setTimeout(() => {
+    const pat = /CFrame\.new\(([^)]+)\)/g;
+    let match;
+    let count = 0;
+    const fragment = document.createDocumentFragment();
 
-      resultsDiv.innerHTML += `
-        <div class="result-card">
-          <div class="result-header">
-            <span class="result-tag">Teleporter #${count}</span>
-            <button class="btn-icon-sm" onclick="copyCFrame('${escaped}', this)">Copy</button>
-          </div>
-          <div class="result-cframe">${fullCframe}</div>
-        </div>`;
+    while ((match = pat.exec(raw)) !== null) {
+      if (getContext(raw, match.index).indexOf('Teleporter') !== -1) {
+        count++;
+        const fullCframe = match[0];
+
+        const card = document.createElement('div');
+        card.className = 'result-card';
+
+        const header = document.createElement('div');
+        header.className = 'result-header';
+
+        const tag = document.createElement('span');
+        tag.className = 'result-tag';
+        tag.textContent = `Teleporter #${count}`;
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn-icon-sm';
+        copyBtn.textContent = 'Copy';
+        copyBtn.dataset.cframe = fullCframe;
+        copyBtn.addEventListener('click', function() {
+          copyCFrame(this.dataset.cframe, this);
+        });
+
+        const cframeDiv = document.createElement('div');
+        cframeDiv.className = 'result-cframe';
+        cframeDiv.textContent = fullCframe;
+
+        header.appendChild(tag);
+        header.appendChild(copyBtn);
+        card.appendChild(header);
+        card.appendChild(cframeDiv);
+        fragment.appendChild(card);
+      }
     }
-  }
 
-  if (count === 0) {
-    resultsDiv.innerHTML = '<div class="no-result">Tidak ditemukan CFrame dengan konteks "Teleporter".</div>';
-  } else {
-    showToast(`Ditemukan ${count} CFrame Teleporter!`, 'success');
-  }
+    resultsDiv.appendChild(fragment);
+
+    if (count === 0) {
+      resultsDiv.innerHTML = '<div class="no-result">Tidak ditemukan CFrame dengan konteks "Teleporter".</div>';
+    } else {
+      showToast(`Ditemukan ${count} CFrame Teleporter!`, 'success');
+    }
+
+    btn.innerHTML = origText;
+    btn.disabled = false;
+  }, 0);
 }
 
 function clearExtractor() {
@@ -127,7 +158,10 @@ async function addMapToGitHub() {
   const cFar = document.getElementById('addFarCFrame').value.trim();
   const cSky = document.getElementById('addSkyCFrame').value.trim();
 
-  if (!mapName || (!useFar && !useSky)) return showToast('Data form belum lengkap!', 'error');
+  if (!mapName) return showToast('Nama map tidak boleh kosong!', 'error');
+  if (!useFar && !useSky) return showToast('Pilih minimal satu tipe lokasi (Far/Sky)!', 'error');
+  if (useFar && !cFar) return showToast('CFrame Far tidak boleh kosong!', 'error');
+  if (useSky && !cSky) return showToast('CFrame Sky tidak boleh kosong!', 'error');
 
   const btn = document.getElementById('btnAddSubmit');
   btn.innerHTML = '<span class="spinner"></span> Mengirim...'; btn.disabled = true;
