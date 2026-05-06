@@ -29,7 +29,11 @@
 <!-- Sidebar Menu -->
 <div class="sidebar" id="sidebar">
   <div class="sidebar-label">Menu</div>
-  <a class="menu-item active" onclick="switchView('extract', this)" id="menu-extract">
+  <a class="menu-item active" onclick="switchView('dashboard', this)" id="menu-dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </a>
+  <a class="menu-item" onclick="switchView('extract', this)" id="menu-extract">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     Ekstrak CFrame
   </a>
@@ -39,7 +43,7 @@
   </a>
   <a class="menu-item" onclick="switchView('edit', this)" id="menu-edit">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-    Edit & Hapus Map
+    Edit &amp; Hapus Map
   </a>
   <div class="sidebar-footer">
     <span class="status-dot"></span> Server Connected
@@ -48,8 +52,94 @@
 
 <div class="main-content">
 
+  <!-- ============ VIEW 0: DASHBOARD ============ -->
+  <div id="view-dashboard" class="view-section active">
+    <div class="page-header">
+      <h1>Map <span class="hl">Dashboard</span></h1>
+      <p>Overview progress database CFrame teleporter untuk semua map Evade.</p>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="dash-stats">
+      <div class="dash-stat-card">
+        <div class="dash-stat-icon icon-total">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="dash-stat-info">
+          <div class="dash-stat-value" id="dashTotal">—</div>
+          <div class="dash-stat-label">Total Maps</div>
+        </div>
+      </div>
+      <div class="dash-stat-card">
+        <div class="dash-stat-icon icon-complete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="dash-stat-info">
+          <div class="dash-stat-value" id="dashComplete">—</div>
+          <div class="dash-stat-label">Selesai</div>
+        </div>
+      </div>
+      <div class="dash-stat-card">
+        <div class="dash-stat-icon icon-missing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <div class="dash-stat-info">
+          <div class="dash-stat-value" id="dashMissing">—</div>
+          <div class="dash-stat-label">Belum Ada</div>
+        </div>
+      </div>
+      <div class="dash-stat-card">
+        <div class="dash-stat-icon icon-progress">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+        </div>
+        <div class="dash-stat-info">
+          <div class="dash-stat-value" id="dashPercent">—</div>
+          <div class="dash-stat-label">Progress</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="dash-progress-wrapper">
+      <div class="dash-progress-track">
+        <div class="dash-progress-fill" id="dashProgressFill" style="width: 0%"></div>
+      </div>
+      <div class="dash-progress-label">
+        <span id="dashProgressText">Klik tombol di bawah untuk memuat data</span>
+      </div>
+    </div>
+
+    <!-- Load Button -->
+    <button class="btn btn-primary" onclick="loadDashboard()" id="btnLoadDash" style="margin-bottom: 24px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Muat Dashboard
+    </button>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="dash-toolbar" id="dashToolbar" style="display: none;">
+      <div class="dash-filters">
+        <button class="dash-filter active" data-filter="all" onclick="setDashFilter('all', this)">Semua</button>
+        <button class="dash-filter" data-filter="complete" onclick="setDashFilter('complete', this)">&#10003; Selesai</button>
+        <button class="dash-filter" data-filter="partial" onclick="setDashFilter('partial', this)">&#9679; Sebagian</button>
+        <button class="dash-filter" data-filter="missing" onclick="setDashFilter('missing', this)">&#10005; Belum</button>
+      </div>
+      <div class="dash-search-wrapper">
+        <svg class="dash-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="dash-search" id="dashSearch" placeholder="Cari map..." oninput="filterDashGrid()">
+      </div>
+    </div>
+
+    <!-- Map Count Label -->
+    <div class="dash-grid-header" id="dashGridHeader" style="display: none;">
+      <span id="dashShowing">Menampilkan 0 map</span>
+    </div>
+
+    <!-- Map Grid -->
+    <div class="dash-grid" id="dashGrid"></div>
+  </div>
+
   <!-- ============ VIEW 1: EXTRACT CFRAME ============ -->
-  <div id="view-extract" class="view-section active">
+  <div id="view-extract" class="view-section">
     <div class="page-header">
       <h1>Ekstrak <span class="hl">CFrame</span></h1>
       <p>Paste raw dump Lua dari executor untuk mengekstrak koordinat Teleporter.</p>
@@ -119,7 +209,7 @@
   <!-- ============ VIEW 3: EDIT & HAPUS ============ -->
   <div id="view-edit" class="view-section">
     <div class="page-header">
-      <h1>Edit & Hapus <span class="hl">Map</span></h1>
+      <h1>Edit &amp; Hapus <span class="hl">Map</span></h1>
       <p>Kelola map yang sudah tersimpan di database GitHub.</p>
     </div>
 
@@ -131,7 +221,7 @@
     </div>
 
     <div class="panel">
-      <button class="btn btn-secondary" id="btnLoadDb" onclick="loadDatabaseFromGitHub()">Sinkronisasi & Muat Data</button>
+      <button class="btn btn-secondary" id="btnLoadDb" onclick="loadDatabaseFromGitHub()">Sinkronisasi &amp; Muat Data</button>
 
       <div id="editArea" style="display: none; margin-top: 24px;">
         <div class="form-group">

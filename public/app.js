@@ -1,3 +1,125 @@
+// --- Dashboard Logic ---
+let dashData = { allMaps: [], dbMaps: {}, currentFilter: 'all' };
+
+async function loadDashboard() {
+  const btn = document.getElementById('btnLoadDash');
+  btn.innerHTML = '<span class="spinner"></span> Memuat...';
+  btn.disabled = true;
+
+  try {
+    const [mapsRes, dbRes] = await Promise.allSettled([
+      fetch('/api/allmaps'),
+      fetch('/api/github')
+    ]);
+
+    if (mapsRes.status === 'fulfilled' && mapsRes.value.ok) {
+      dashData.allMaps = await mapsRes.value.json();
+    }
+
+    dashData.dbMaps = {};
+    if (dbRes.status === 'fulfilled' && dbRes.value.ok) {
+      const data = await dbRes.value.json();
+      const regex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
+      let m;
+      while ((m = regex.exec(data.content)) !== null) {
+        const inner = m[2];
+        dashData.dbMaps[m[1]] = {
+          far: /Far\s*=\s*CFrame/.test(inner),
+          sky: /Sky\s*=\s*CFrame/.test(inner)
+        };
+      }
+    }
+
+    updateDashStats();
+    renderDashGrid();
+    document.getElementById('dashToolbar').style.display = 'flex';
+    document.getElementById('dashGridHeader').style.display = 'block';
+    showToast('Dashboard dimuat!', 'success');
+  } catch (err) {
+    showToast('Gagal memuat dashboard: ' + err.message, 'error');
+  } finally {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh Dashboard';
+    btn.disabled = false;
+  }
+}
+
+function updateDashStats() {
+  const total = dashData.allMaps.length;
+  let complete = 0, partial = 0;
+  dashData.allMaps.forEach(name => {
+    const db = dashData.dbMaps[name];
+    if (db && db.far && db.sky) complete++;
+    else if (db && (db.far || db.sky)) partial++;
+  });
+  const missing = total - complete - partial;
+  const pct = total > 0 ? Math.round(((complete + partial * 0.5) / total) * 100) : 0;
+
+  document.getElementById('dashTotal').textContent = total;
+  document.getElementById('dashComplete').textContent = complete;
+  document.getElementById('dashMissing').textContent = missing + partial;
+  document.getElementById('dashPercent').textContent = pct + '%';
+  document.getElementById('dashProgressFill').style.width = pct + '%';
+  document.getElementById('dashProgressText').textContent =
+    `${complete} selesai lengkap, ${partial} sebagian, ${missing} belum ada dari ${total} map`;
+}
+
+function getMapStatus(name) {
+  const db = dashData.dbMaps[name];
+  if (!db) return 'missing';
+  if (db.far && db.sky) return 'complete';
+  return 'partial';
+}
+
+function renderDashGrid() {
+  const grid = document.getElementById('dashGrid');
+  const query = (document.getElementById('dashSearch')?.value || '').trim().toLowerCase();
+  const filter = dashData.currentFilter;
+  grid.innerHTML = '';
+
+  let shown = 0;
+  dashData.allMaps.forEach(name => {
+    const status = getMapStatus(name);
+    if (filter !== 'all' && filter !== status) return;
+    if (query && !name.toLowerCase().includes(query)) return;
+
+    const db = dashData.dbMaps[name];
+    const card = document.createElement('div');
+    card.className = `map-card status-${status}`;
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'map-card-name';
+    nameEl.textContent = name;
+
+    const badges = document.createElement('div');
+    badges.className = 'map-card-badges';
+
+    if (!db) {
+      badges.innerHTML = '<span class="map-badge no-data">No Data</span>';
+    } else {
+      if (db.far) badges.innerHTML += '<span class="map-badge has-far">Far ✓</span>';
+      else badges.innerHTML += '<span class="map-badge no-far">Far ✕</span>';
+      if (db.sky) badges.innerHTML += '<span class="map-badge has-sky">Sky ✓</span>';
+      else badges.innerHTML += '<span class="map-badge no-sky">Sky ✕</span>';
+    }
+
+    card.appendChild(nameEl);
+    card.appendChild(badges);
+    grid.appendChild(card);
+    shown++;
+  });
+
+  document.getElementById('dashShowing').textContent = `Menampilkan ${shown} map`;
+}
+
+function setDashFilter(filter, btn) {
+  dashData.currentFilter = filter;
+  document.querySelectorAll('.dash-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDashGrid();
+}
+
+function filterDashGrid() { renderDashGrid(); }
+
 // --- Toast Notification System ---
 function showToast(message, type = 'info') {
   let container = document.querySelector('.toast-container');
