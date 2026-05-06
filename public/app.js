@@ -142,6 +142,18 @@ function clearExtractor() {
 }
 
 // --- View 2: Import (Add Map) ---
+let allMapNames = [];
+
+async function loadAllMaps() {
+  try {
+    const res = await fetch('/api/allmaps');
+    if (res.ok) allMapNames = await res.json();
+  } catch (e) { console.warn('Gagal memuat daftar map:', e); }
+}
+
+// Load map names on page init
+loadAllMaps();
+
 function toggleAddInputs() {
   const farCheck = document.getElementById('checkAddFar').checked;
   const skyCheck = document.getElementById('checkAddSky').checked;
@@ -150,6 +162,52 @@ function toggleAddInputs() {
   if (!farCheck) document.getElementById('addFarCFrame').value = '';
   if (!skyCheck) document.getElementById('addSkyCFrame').value = '';
 }
+
+// --- Autocomplete for Nama Map ---
+(function() {
+  const input = document.getElementById('addMapName');
+  const listEl = document.getElementById('addMapSuggestions');
+  if (!input || !listEl) return;
+
+  function highlightMatch(text, query) {
+    if (!query) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return text.substring(0, idx) + '<span class="match-hl">' + text.substring(idx, idx + query.length) + '</span>' + text.substring(idx + query.length);
+  }
+
+  function renderSuggestions() {
+    const q = input.value.trim();
+    listEl.innerHTML = '';
+    if (!q || allMapNames.length === 0) { listEl.classList.remove('active'); return; }
+
+    const filtered = allMapNames.filter(m => m.toLowerCase().includes(q.toLowerCase())).slice(0, 20);
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="autocomplete-empty">Tidak ditemukan</div>';
+      listEl.classList.add('active');
+      return;
+    }
+
+    filtered.forEach(name => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.innerHTML = highlightMatch(name, q);
+      item.addEventListener('click', () => {
+        input.value = name;
+        listEl.classList.remove('active');
+      });
+      listEl.appendChild(item);
+    });
+    listEl.classList.add('active');
+  }
+
+  input.addEventListener('input', renderSuggestions);
+  input.addEventListener('focus', () => { if (input.value.trim()) renderSuggestions(); });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#addMapWrapper')) listEl.classList.remove('active');
+  });
+})();
 
 async function addMapToGitHub() {
   const mapName = document.getElementById('addMapName').value.trim();
@@ -202,6 +260,75 @@ async function addMapToGitHub() {
 
 // --- View 3: Edit & Hapus ---
 let dbState = { content: "", sha: "", maps: {} };
+let selectedEditMap = '';
+
+// --- Custom Dropdown for Edit ---
+function toggleEditDropdown() {
+  const trigger = document.getElementById('editMapTrigger');
+  const dropdown = document.getElementById('editMapDropdown');
+  const search = document.getElementById('editMapSearch');
+  const isOpen = dropdown.classList.contains('active');
+
+  if (isOpen) {
+    dropdown.classList.remove('active');
+    trigger.classList.remove('active');
+  } else {
+    dropdown.classList.add('active');
+    trigger.classList.add('active');
+    search.value = '';
+    filterEditMaps();
+    setTimeout(() => search.focus(), 50);
+  }
+}
+
+function filterEditMaps() {
+  const query = document.getElementById('editMapSearch').value.trim().toLowerCase();
+  const list = document.getElementById('editMapList');
+  const emptyEl = document.getElementById('editMapEmpty');
+  const mapNames = Object.keys(dbState.maps);
+  list.innerHTML = '';
+
+  const filtered = mapNames.filter(n => n.toLowerCase().includes(query));
+  if (filtered.length === 0) {
+    emptyEl.style.display = 'block';
+  } else {
+    emptyEl.style.display = 'none';
+    filtered.forEach(name => {
+      const item = document.createElement('div');
+      item.className = 'custom-select-item' + (name === selectedEditMap ? ' selected' : '');
+      item.innerHTML = highlightText(name, query);
+      item.addEventListener('click', () => selectEditMap(name));
+      list.appendChild(item);
+    });
+  }
+}
+
+function highlightText(text, query) {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query);
+  if (idx === -1) return text;
+  return text.substring(0, idx) + '<span class="match-hl">' + text.substring(idx, idx + query.length) + '</span>' + text.substring(idx + query.length);
+}
+
+function selectEditMap(mapName) {
+  selectedEditMap = mapName;
+  document.getElementById('editMapSelectedText').textContent = mapName;
+  document.getElementById('editMapDropdown').classList.remove('active');
+  document.getElementById('editMapTrigger').classList.remove('active');
+  populateEditForm();
+}
+
+// Click outside to close dropdown
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#editMapSelectWrapper')) {
+    document.getElementById('editMapDropdown').classList.remove('active');
+    document.getElementById('editMapTrigger').classList.remove('active');
+  }
+});
+
+// Wire up trigger click and search
+document.getElementById('editMapTrigger').addEventListener('click', toggleEditDropdown);
+document.getElementById('editMapSearch').addEventListener('input', filterEditMaps);
 
 async function loadDatabaseFromGitHub() {
   const btn = document.getElementById('btnLoadDb');
@@ -214,9 +341,8 @@ async function loadDatabaseFromGitHub() {
     dbState.content = data.content;
     dbState.sha = data.sha;
     dbState.maps = {};
-
-    const select = document.getElementById('editMapSelect');
-    select.innerHTML = '<option value="">— Pilih Map —</option>';
+    selectedEditMap = '';
+    document.getElementById('editMapSelectedText').textContent = '\u2014 Pilih Map \u2014';
 
     const mapRegex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
     let match;
@@ -232,25 +358,24 @@ async function loadDatabaseFromGitHub() {
         far: farMatch ? farMatch[1] : "",
         sky: skyMatch ? skyMatch[1] : ""
       };
-      select.innerHTML += `<option value="${mapName}">${mapName}</option>`;
       mapCount++;
     }
 
+    filterEditMaps();
     document.getElementById('editArea').style.display = 'block';
     document.getElementById('mapCountStat').textContent = mapCount;
     showToast(`Database dimuat! ${mapCount} map ditemukan.`, 'success');
   } catch (err) {
     showToast('Gagal memuat: ' + err.message, 'error');
   } finally {
-    btn.innerHTML = 'Sinkronisasi & Muat Data'; btn.disabled = false;
+    btn.innerHTML = 'Sinkronisasi &amp; Muat Data'; btn.disabled = false;
   }
 }
 
 function populateEditForm() {
-  const mapName = document.getElementById('editMapSelect').value;
-  if (mapName && dbState.maps[mapName]) {
-    document.getElementById('editFarCFrame').value = dbState.maps[mapName].far;
-    document.getElementById('editSkyCFrame').value = dbState.maps[mapName].sky;
+  if (selectedEditMap && dbState.maps[selectedEditMap]) {
+    document.getElementById('editFarCFrame').value = dbState.maps[selectedEditMap].far;
+    document.getElementById('editSkyCFrame').value = dbState.maps[selectedEditMap].sky;
   } else {
     document.getElementById('editFarCFrame').value = '';
     document.getElementById('editSkyCFrame').value = '';
@@ -258,7 +383,7 @@ function populateEditForm() {
 }
 
 async function updateMapToGitHub() {
-  const mapName = document.getElementById('editMapSelect').value;
+  const mapName = selectedEditMap;
   const cFar = document.getElementById('editFarCFrame').value.trim();
   const cSky = document.getElementById('editSkyCFrame').value.trim();
 
@@ -300,7 +425,7 @@ function escapeRegExp(string) {
 }
 
 async function deleteMapFromGitHub() {
-  const mapName = document.getElementById('editMapSelect').value;
+  const mapName = selectedEditMap;
   if (!mapName) return showToast('Pilih map terlebih dahulu!', 'error');
   if (!confirm(`Hapus map "${mapName}" secara permanen?`)) return;
 

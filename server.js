@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -62,6 +64,18 @@ app.post('/api/github', async (req, res) => {
     } catch (error) {
         console.error("POST Error:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint untuk daftar semua map (autocomplete)
+app.get('/api/allmaps', (req, res) => {
+    try {
+        const data = fs.readFileSync(path.join(__dirname, 'allmaps.txt'), 'utf-8');
+        const maps = data.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        res.json(maps);
+    } catch (err) {
+        console.error('AllMaps Error:', err);
+        res.status(500).json({ error: err.message });
     }
 });
 

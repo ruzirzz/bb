@@ -82,7 +82,10 @@
     <div class="panel">
       <div class="form-group">
         <label class="form-label">Nama Map</label>
-        <input type="text" id="addMapName" class="form-input" placeholder="Contoh: CityMap">
+        <div class="autocomplete-wrapper" id="addMapWrapper">
+          <input type="text" id="addMapName" class="form-input" placeholder="Ketik nama map..." autocomplete="off">
+          <div class="autocomplete-list" id="addMapSuggestions"></div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -133,7 +136,17 @@
       <div id="editArea" style="display: none; margin-top: 24px;">
         <div class="form-group">
           <label class="form-label">Pilih Map</label>
-          <select id="editMapSelect" class="form-select" onchange="populateEditForm()"></select>
+          <div class="custom-select-wrapper" id="editMapSelectWrapper">
+            <button type="button" class="custom-select-trigger" id="editMapTrigger">
+              <span id="editMapSelectedText">— Pilih Map —</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="custom-select-dropdown" id="editMapDropdown">
+              <input type="text" class="custom-select-search" id="editMapSearch" placeholder="Cari map..." autocomplete="off">
+              <div class="custom-select-list" id="editMapList"></div>
+              <div class="custom-select-empty" id="editMapEmpty">Tidak ada map ditemukan</div>
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
