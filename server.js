@@ -79,5 +79,38 @@ app.get('/api/allmaps', (req, res) => {
     }
 });
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+});
+
+// Last update endpoint (last commit date for tp.lua)
+app.get('/api/lastupdate', async (req, res) => {
+    try {
+        const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/commits?path=${process.env.GITHUB_PATH}&per_page=1`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Railway-Node-App'
+            }
+        });
+        if (!response.ok) throw new Error('GitHub API error');
+        const commits = await response.json();
+        if (commits.length > 0) {
+            res.json({
+                date: commits[0].commit.committer.date,
+                message: commits[0].commit.message,
+                author: commits[0].commit.committer.name
+            });
+        } else {
+            res.json({ date: null, message: null });
+        }
+    } catch (err) {
+        console.error('LastUpdate Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server berjalan di port ${PORT}`));

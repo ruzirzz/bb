@@ -34,6 +34,7 @@ async function loadDashboard() {
     renderDashGrid();
     document.getElementById('dashToolbar').style.display = 'flex';
     document.getElementById('dashGridHeader').style.display = 'block';
+    fetchLastUpdate();
     showToast('Dashboard dimuat!', 'success');
   } catch (err) {
     showToast('Gagal memuat dashboard: ' + err.message, 'error');
@@ -224,6 +225,16 @@ function extractCFrames() {
         tag.className = 'result-tag';
         tag.textContent = `Teleporter #${count}`;
 
+
+        const cframeDiv = document.createElement('div');
+        cframeDiv.className = 'result-cframe';
+        cframeDiv.textContent = fullCframe;
+
+        header.appendChild(tag);
+
+        const actions = document.createElement('div');
+        actions.className = 'result-actions';
+
         const copyBtn = document.createElement('button');
         copyBtn.className = 'btn-icon-sm';
         copyBtn.textContent = 'Copy';
@@ -232,12 +243,17 @@ function extractCFrames() {
           copyCFrame(this.dataset.cframe, this);
         });
 
-        const cframeDiv = document.createElement('div');
-        cframeDiv.className = 'result-cframe';
-        cframeDiv.textContent = fullCframe;
+        const addBtn = document.createElement('button');
+        addBtn.className = 'btn-icon-sm';
+        addBtn.innerHTML = '+ Tambah';
+        addBtn.dataset.cframe = fullCframe;
+        addBtn.addEventListener('click', function() {
+          quickAddCFrame(this.dataset.cframe);
+        });
 
-        header.appendChild(tag);
-        header.appendChild(copyBtn);
+        actions.appendChild(copyBtn);
+        actions.appendChild(addBtn);
+        header.appendChild(actions);
         card.appendChild(header);
         card.appendChild(cframeDiv);
         fragment.appendChild(card);
@@ -579,3 +595,80 @@ async function deleteMapFromGitHub() {
     btnDel.innerHTML = 'Hapus Map'; btnDel.disabled = false;
   }
 }
+
+// --- Quick Add from Extractor ---
+function quickAddCFrame(cframeText) {
+  // Switch to Import view
+  const importMenuItem = document.getElementById('menu-import');
+  switchView('import', importMenuItem);
+
+  // Auto-fill the Far CFrame field (most common use case)
+  const farCheck = document.getElementById('checkAddFar');
+  const skyCheck = document.getElementById('checkAddSky');
+
+  if (!farCheck.checked && !skyCheck.checked) {
+    farCheck.checked = true;
+    toggleAddInputs();
+  }
+
+  // Fill the first empty CFrame field
+  const farInput = document.getElementById('addFarCFrame');
+  const skyInput = document.getElementById('addSkyCFrame');
+
+  if (farCheck.checked && !farInput.value) {
+    farInput.value = cframeText;
+    showToast('CFrame diisi ke Far. Isi nama map lalu simpan!', 'info');
+  } else if (skyCheck.checked && !skyInput.value) {
+    skyInput.value = cframeText;
+    showToast('CFrame diisi ke Sky. Isi nama map lalu simpan!', 'info');
+  } else {
+    farInput.value = cframeText;
+    showToast('CFrame Far diganti. Isi nama map lalu simpan!', 'info');
+  }
+}
+
+// --- Last Updated from GitHub ---
+async function fetchLastUpdate() {
+  try {
+    const res = await fetch('/api/lastupdate');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.date) {
+      const d = new Date(data.date);
+      const formatted = d.toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+      document.getElementById('dashLastUpdateText').textContent =
+        `Terakhir diperbarui: ${formatted} — ${data.message || ''}`;
+    }
+  } catch (e) {
+    console.warn('Gagal mengambil info terakhir:', e);
+  }
+}
+
+// --- Server Status Check ---
+async function checkServerStatus() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  try {
+    const res = await fetch('/api/health', { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      dot.classList.remove('offline');
+      text.textContent = 'Server Connected';
+    } else {
+      dot.classList.add('offline');
+      text.textContent = 'Server Error';
+    }
+  } catch (e) {
+    dot.classList.add('offline');
+    text.textContent = 'Server Offline';
+  }
+}
+
+// --- Auto Init ---
+document.addEventListener('DOMContentLoaded', () => {
+  checkServerStatus();
+  setInterval(checkServerStatus, 30000); // Check every 30s
+  loadDashboard(); // Auto-load dashboard
+});

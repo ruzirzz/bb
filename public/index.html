@@ -45,8 +45,8 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     Edit &amp; Hapus Map
   </a>
-  <div class="sidebar-footer">
-    <span class="status-dot"></span> Server Connected
+  <div class="sidebar-footer" id="sidebarStatus">
+    <span class="status-dot" id="statusDot"></span> <span id="statusText">Mengecek...</span>
   </div>
 </div>
 
@@ -107,6 +107,12 @@
       <div class="dash-progress-label">
         <span id="dashProgressText">Klik tombol di bawah untuk memuat data</span>
       </div>
+    </div>
+
+    <!-- Last Updated Info -->
+    <div class="dash-last-updated" id="dashLastUpdated">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span id="dashLastUpdateText">Terakhir diperbarui: belum dimuat</span>
     </div>
 
     <!-- Load Button -->
