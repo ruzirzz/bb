@@ -8,6 +8,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// --- Middleware Autentikasi ---
+const API_KEY = process.env.API_KEY;
+
+function authMiddleware(req, res, next) {
+    if (!API_KEY) return next(); // Kalau API_KEY belum di-set, skip (dev mode)
+    const key = req.headers['x-api-key'] || req.query.key;
+    if (key !== API_KEY) {
+        return res.status(401).json({ error: 'Unauthorized: API key tidak valid.' });
+    }
+    next();
+}
+
+// Proteksi endpoint yang mengubah data (POST)
+app.post('/api/*', authMiddleware);
+
 // Endpoint untuk MENGAMBIL data (Load Database)
 app.get('/api/github', async (req, res) => {
     try {
@@ -35,10 +50,37 @@ app.get('/api/github', async (req, res) => {
     }
 });
 
+// --- Validasi CFrame format ---
+function validateCFrameContent(content) {
+    // Cek semua CFrame.new() punya format angka yang valid
+    const cframes = content.match(/CFrame\.new\([^)]+\)/g);
+    if (!cframes) return { valid: true };
+    for (const cf of cframes) {
+        const inner = cf.replace('CFrame.new(', '').replace(')', '');
+        const parts = inner.split(',').map(s => s.trim());
+        if (parts.length < 3 || parts.length > 12) {
+            return { valid: false, reason: `CFrame invalid (${parts.length} params): ${cf.substring(0, 60)}...` };
+        }
+        for (const p of parts) {
+            if (isNaN(Number(p))) {
+                return { valid: false, reason: `Parameter bukan angka "${p}" di: ${cf.substring(0, 60)}...` };
+            }
+        }
+    }
+    return { valid: true };
+}
+
 // Endpoint untuk MENYIMPAN data (Commit)
 app.post('/api/github', async (req, res) => {
     try {
         const { content, sha, message } = req.body;
+
+        // Validasi format CFrame sebelum commit
+        const validation = validateCFrameContent(content);
+        if (!validation.valid) {
+            return res.status(400).json({ error: `Validasi gagal: ${validation.reason}` });
+        }
+
         const url = `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents/${process.env.GITHUB_PATH}`;
         const encodedContent = Buffer.from(content, 'utf-8').toString('base64');
         

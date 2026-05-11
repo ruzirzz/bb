@@ -1,3 +1,25 @@
+// --- API Key Management ---
+function getApiKey() {
+    return localStorage.getItem('cfdb_api_key') || '';
+}
+
+function setApiKey(key) {
+    localStorage.setItem('cfdb_api_key', key);
+}
+
+function promptApiKey() {
+    const key = prompt('Masukkan API Key untuk akses write:');
+    if (key) setApiKey(key);
+    return key;
+}
+
+function authHeaders() {
+    const key = getApiKey();
+    const headers = { 'Content-Type': 'application/json' };
+    if (key) headers['X-Api-Key'] = key;
+    return headers;
+}
+
 // --- Dashboard Logic ---
 let dashData = { allMaps: [], dbMaps: {}, currentFilter: 'all' };
 
@@ -379,11 +401,11 @@ async function addMapToGitHub() {
 
     const postRes = await fetch('/api/github', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ content: updatedContent, sha: data.sha, message: `Update Database: Menambah Map [${mapName}]` })
     });
 
-    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); throw new Error(e.error || "Gagal menyimpan."); }
+    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); if (postRes.status === 401) { promptApiKey(); } throw new Error(e.error || "Gagal menyimpan."); }
 
     showToast(`Map "${mapName}" berhasil ditambahkan!`, 'success');
     document.getElementById('addMapName').value = '';
@@ -542,11 +564,11 @@ async function updateMapToGitHub() {
 
     const postRes = await fetch('/api/github', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ content: updatedContent, sha: dbState.sha, message: `Update Database: Edit Map [${mapName}]` })
     });
 
-    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); throw new Error(e.error || "Gagal update."); }
+    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); if (postRes.status === 401) { promptApiKey(); } throw new Error(e.error || "Gagal update."); }
 
     showToast(`Map "${mapName}" berhasil diperbarui!`, 'success');
     await loadDatabaseFromGitHub();
@@ -578,11 +600,11 @@ async function deleteMapFromGitHub() {
 
     const postRes = await fetch('/api/github', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ content: updatedContent, sha: dbState.sha, message: `Update Database: Hapus Map [${mapName}]` })
     });
 
-    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); throw new Error(e.error || "Gagal menghapus."); }
+    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); if (postRes.status === 401) { promptApiKey(); } throw new Error(e.error || "Gagal menghapus."); }
 
     showToast(`Map "${mapName}" berhasil dihapus!`, 'success');
     document.getElementById('editFarCFrame').value = '';

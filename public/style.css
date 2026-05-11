@@ -129,6 +129,12 @@ body {
   margin-top: auto; padding: 14px; border-top: 1px solid var(--b1);
   font-size: 11px; color: var(--t3); display: flex; align-items: center; gap: 8px;
 }
+.btn-apikey {
+  margin-left: auto; background: none; border: 1px solid var(--b2);
+  border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px;
+  transition: all 0.2s var(--ease);
+}
+.btn-apikey:hover { border-color: var(--accent); background: var(--accent-glow); }
 .status-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--green);
   box-shadow: 0 0 8px rgba(52,211,153,0.4);
