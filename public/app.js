@@ -21,12 +21,13 @@ function authHeaders() {
 }
 
 // --- Dashboard Logic ---
-let dashData = { allMaps: [], dbMaps: {}, currentFilter: 'all' };
+let dashData = { allMaps: [], dbMaps: {}, currentFilter: 'all', sortBy: 'name' };
 
 async function loadDashboard() {
   const btn = document.getElementById('btnLoadDash');
   btn.innerHTML = '<span class="spinner"></span> Memuat...';
   btn.disabled = true;
+  showDashSkeleton();
 
   try {
     const [mapsRes, dbRes] = await Promise.allSettled([
@@ -66,6 +67,18 @@ async function loadDashboard() {
   }
 }
 
+// Loading skeleton saat dashboard loading
+function showDashSkeleton() {
+  const grid = document.getElementById('dashGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const skel = document.createElement('div');
+    skel.className = 'map-card skeleton';
+    skel.innerHTML = '<div class="skel-line skel-title"></div><div class="skel-line skel-badge"></div>';
+    grid.appendChild(skel);
+  }
+}
+
 function updateDashStats() {
   const total = dashData.allMaps.length;
   let complete = 0, partial = 0;
@@ -93,18 +106,50 @@ function getMapStatus(name) {
   return 'partial';
 }
 
+function sortMaps(maps) {
+  const sorted = [...maps];
+  switch (dashData.sortBy) {
+    case 'name':
+      sorted.sort((a, b) => a.localeCompare(b));
+      break;
+    case 'name-desc':
+      sorted.sort((a, b) => b.localeCompare(a));
+      break;
+    case 'status':
+      const order = { complete: 0, partial: 1, missing: 2 };
+      sorted.sort((a, b) => order[getMapStatus(a)] - order[getMapStatus(b)] || a.localeCompare(b));
+      break;
+    case 'status-desc':
+      const orderDesc = { missing: 0, partial: 1, complete: 2 };
+      sorted.sort((a, b) => orderDesc[getMapStatus(a)] - orderDesc[getMapStatus(b)] || a.localeCompare(b));
+      break;
+  }
+  return sorted;
+}
+
+function setDashSort(sortBy) {
+  dashData.sortBy = sortBy;
+  renderDashGrid();
+}
+
 function renderDashGrid() {
   const grid = document.getElementById('dashGrid');
   const query = (document.getElementById('dashSearch')?.value || '').trim().toLowerCase();
   const filter = dashData.currentFilter;
   grid.innerHTML = '';
 
-  let shown = 0;
-  dashData.allMaps.forEach(name => {
+  let filtered = dashData.allMaps.filter(name => {
     const status = getMapStatus(name);
-    if (filter !== 'all' && filter !== status) return;
-    if (query && !name.toLowerCase().includes(query)) return;
+    if (filter !== 'all' && filter !== status) return false;
+    if (query && !name.toLowerCase().includes(query)) return false;
+    return true;
+  });
 
+  filtered = sortMaps(filtered);
+
+  let shown = 0;
+  filtered.forEach(name => {
+    const status = getMapStatus(name);
     const db = dashData.dbMaps[name];
     const card = document.createElement('div');
     card.className = `map-card status-${status}`;
@@ -119,10 +164,10 @@ function renderDashGrid() {
     if (!db) {
       badges.innerHTML = '<span class="map-badge no-data">No Data</span>';
     } else {
-      if (db.far) badges.innerHTML += '<span class="map-badge has-far">Far ✓</span>';
-      else badges.innerHTML += '<span class="map-badge no-far">Far ✕</span>';
-      if (db.sky) badges.innerHTML += '<span class="map-badge has-sky">Sky ✓</span>';
-      else badges.innerHTML += '<span class="map-badge no-sky">Sky ✕</span>';
+      if (db.far) badges.innerHTML += '<span class="map-badge has-far">Far \u2713</span>';
+      else badges.innerHTML += '<span class="map-badge no-far">Far \u2715</span>';
+      if (db.sky) badges.innerHTML += '<span class="map-badge has-sky">Sky \u2713</span>';
+      else badges.innerHTML += '<span class="map-badge no-sky">Sky \u2715</span>';
     }
 
     card.appendChild(nameEl);
@@ -143,6 +188,19 @@ function setDashFilter(filter, btn) {
 
 function filterDashGrid() { renderDashGrid(); }
 
+// Auto-refresh dashboard setelah ada perubahan data
+function refreshDashboardIfLoaded() {
+  if (dashData.allMaps.length > 0) {
+    loadDashboard();
+  }
+}
+
+// --- Export/Backup ---
+function exportDatabase() {
+  window.open('/api/export', '_blank');
+  showToast('Download tp.lua dimulai...', 'info');
+}
+
 // --- Toast Notification System ---
 function showToast(message, type = 'info') {
   let container = document.querySelector('.toast-container');
@@ -153,14 +211,13 @@ function showToast(message, type = 'info') {
   }
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  const icons = {
-    success: '✓',
-    error: '✕',
-    info: 'ℹ'
-  };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ'}</span> ${message}`;
+  const icons = { success: '\u2713', error: '\u2715', info: '\u2139' };
+  toast.innerHTML = `<span>${icons[type] || '\u2139'}</span> ${message}`;
   container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+
+  // Error toast lebih lama (6 detik), lainnya 3 detik
+  const duration = type === 'error' ? 6000 : 3000;
+  setTimeout(() => toast.remove(), duration);
 }
 
 // --- Navigation Logic ---
@@ -178,6 +235,25 @@ function switchView(viewName, element) {
   document.getElementById('sidebarOverlay').classList.remove('active');
 }
 
+// --- Keyboard Shortcuts ---
+document.addEventListener('keydown', (e) => {
+  // Escape: tutup sidebar, dropdown, overlay
+  if (e.key === 'Escape') {
+    document.getElementById('sidebar').classList.remove('active');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    document.getElementById('editMapDropdown')?.classList.remove('active');
+    document.getElementById('editMapTrigger')?.classList.remove('active');
+    const autocomplete = document.getElementById('addMapSuggestions');
+    if (autocomplete) autocomplete.classList.remove('active');
+  }
+  // Ctrl+K: focus search di dashboard
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    const search = document.getElementById('dashSearch');
+    if (search) search.focus();
+  }
+});
+
 // --- Copy Helper ---
 function copyInput(elementId) {
   const el = document.getElementById(elementId);
@@ -187,7 +263,7 @@ function copyInput(elementId) {
       if (btn) {
         btn.classList.add('copied');
         const prev = btn.innerHTML;
-        btn.innerHTML = '✓ Copied';
+        btn.innerHTML = '\u2713 Copied';
         setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = prev; }, 1500);
       }
       showToast('Berhasil disalin!', 'success');
@@ -201,7 +277,7 @@ function copyCFrame(text, btnEl) {
   navigator.clipboard.writeText(text).then(() => {
     btnEl.classList.add('copied');
     const prev = btnEl.innerHTML;
-    btnEl.textContent = '✓ Copied';
+    btnEl.textContent = '\u2713 Copied';
     setTimeout(() => { btnEl.classList.remove('copied'); btnEl.innerHTML = prev; }, 1500);
     showToast('CFrame disalin!', 'success');
   });
@@ -246,7 +322,6 @@ function extractCFrames() {
         const tag = document.createElement('span');
         tag.className = 'result-tag';
         tag.textContent = `Teleporter #${count}`;
-
 
         const cframeDiv = document.createElement('div');
         cframeDiv.className = 'result-cframe';
@@ -311,7 +386,6 @@ async function loadAllMaps() {
   } catch (e) { console.warn('Gagal memuat daftar map:', e); }
 }
 
-// Load map names on page init
 loadAllMaps();
 
 function toggleAddInputs() {
@@ -385,9 +459,19 @@ async function addMapToGitHub() {
   btn.innerHTML = '<span class="spinner"></span> Mengirim...'; btn.disabled = true;
 
   try {
+    // Satu kali fetch untuk cek duplikat DAN ambil SHA
     const res = await fetch('/api/github');
     if (!res.ok) { let e = await res.json().catch(()=>({})); throw new Error(e.error || "Server gagal memuat data."); }
     const data = await res.json();
+
+    // Cek duplikat
+    const dupRegex = new RegExp(`\\["${mapName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]\\s*=\\s*\\{`);
+    if (dupRegex.test(data.content)) {
+      if (!confirm(`Map "${mapName}" sudah ada di database. Lanjut tambah duplikat?`)) {
+        btn.innerHTML = 'Simpan ke Database'; btn.disabled = false;
+        return;
+      }
+    }
 
     let newEntry = `\n    ["${mapName}"] = {\n`;
     if (useFar) newEntry += `        Far = ${cFar},\n`;
@@ -405,12 +489,18 @@ async function addMapToGitHub() {
       body: JSON.stringify({ content: updatedContent, sha: data.sha, message: `Update Database: Menambah Map [${mapName}]` })
     });
 
-    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); if (postRes.status === 401) { promptApiKey(); } throw new Error(e.error || "Gagal menyimpan."); }
+    if (!postRes.ok) {
+      const e = await postRes.json().catch(()=>({}));
+      if (postRes.status === 401) { promptApiKey(); }
+      if (e.conflict) { showToast('Data berubah! Silakan refresh dan coba lagi.', 'error'); return; }
+      throw new Error(e.error || "Gagal menyimpan.");
+    }
 
     showToast(`Map "${mapName}" berhasil ditambahkan!`, 'success');
     document.getElementById('addMapName').value = '';
     document.getElementById('addFarCFrame').value = '';
     document.getElementById('addSkyCFrame').value = '';
+    refreshDashboardIfLoaded();
   } catch (err) {
     showToast('Gagal: ' + err.message, 'error');
   } finally {
@@ -421,6 +511,7 @@ async function addMapToGitHub() {
 // --- View 3: Edit & Hapus ---
 let dbState = { content: "", sha: "", maps: {} };
 let selectedEditMap = '';
+let deleteHistory = []; // Undo history
 
 // --- Custom Dropdown for Edit ---
 function toggleEditDropdown() {
@@ -555,22 +646,33 @@ async function updateMapToGitHub() {
   btnDel.disabled = true;
 
   try {
+    // Refresh SHA dulu untuk hindari conflict
+    const freshRes = await fetch('/api/github');
+    if (!freshRes.ok) throw new Error('Gagal mengambil data terbaru.');
+    const freshData = await freshRes.json();
+
     let newBlock = `["${mapName}"] = {\n`;
     if (cFar) newBlock += `        Far = ${cFar},\n`;
     if (cSky) newBlock += `        Sky = ${cSky}\n`;
     newBlock += `    }`;
 
-    const updatedContent = dbState.content.replace(dbState.maps[mapName].fullBlock, newBlock);
+    const updatedContent = freshData.content.replace(dbState.maps[mapName].fullBlock, newBlock);
 
     const postRes = await fetch('/api/github', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ content: updatedContent, sha: dbState.sha, message: `Update Database: Edit Map [${mapName}]` })
+      body: JSON.stringify({ content: updatedContent, sha: freshData.sha, message: `Update Database: Edit Map [${mapName}]` })
     });
 
-    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); if (postRes.status === 401) { promptApiKey(); } throw new Error(e.error || "Gagal update."); }
+    if (!postRes.ok) {
+      const e = await postRes.json().catch(()=>({}));
+      if (postRes.status === 401) { promptApiKey(); }
+      if (e.conflict) { showToast('Conflict! Data berubah. Memuat ulang...', 'error'); await loadDatabaseFromGitHub(); return; }
+      throw new Error(e.error || "Gagal update.");
+    }
 
     showToast(`Map "${mapName}" berhasil diperbarui!`, 'success');
+    refreshDashboardIfLoaded();
     await loadDatabaseFromGitHub();
   } catch (err) {
     showToast('Gagal update: ' + err.message, 'error');
@@ -595,20 +697,41 @@ async function deleteMapFromGitHub() {
   btnDel.innerHTML = '<span class="spinner"></span> Menghapus...'; btnDel.disabled = true;
 
   try {
+    // Refresh SHA
+    const freshRes = await fetch('/api/github');
+    if (!freshRes.ok) throw new Error('Gagal mengambil data terbaru.');
+    const freshData = await freshRes.json();
+
+    // Simpan ke undo history sebelum hapus
+    deleteHistory.push({
+      mapName: mapName,
+      block: dbState.maps[mapName].fullBlock,
+      content: freshData.content,
+      timestamp: Date.now()
+    });
+    // Keep max 10 undo entries
+    if (deleteHistory.length > 10) deleteHistory.shift();
+
     let regexStr = escapeRegExp(dbState.maps[mapName].fullBlock) + "\\s*,?";
-    let updatedContent = dbState.content.replace(new RegExp(regexStr, 'g'), "");
+    let updatedContent = freshData.content.replace(new RegExp(regexStr, 'g'), "");
 
     const postRes = await fetch('/api/github', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ content: updatedContent, sha: dbState.sha, message: `Update Database: Hapus Map [${mapName}]` })
+      body: JSON.stringify({ content: updatedContent, sha: freshData.sha, message: `Update Database: Hapus Map [${mapName}]` })
     });
 
-    if (!postRes.ok) { let e = await postRes.json().catch(()=>({})); if (postRes.status === 401) { promptApiKey(); } throw new Error(e.error || "Gagal menghapus."); }
+    if (!postRes.ok) {
+      const e = await postRes.json().catch(()=>({}));
+      if (postRes.status === 401) { promptApiKey(); }
+      if (e.conflict) { showToast('Conflict! Data berubah. Memuat ulang...', 'error'); await loadDatabaseFromGitHub(); return; }
+      throw new Error(e.error || "Gagal menghapus.");
+    }
 
-    showToast(`Map "${mapName}" berhasil dihapus!`, 'success');
+    showToast(`Map "${mapName}" dihapus. <button class="toast-undo" onclick="undoDelete()">Undo</button>`, 'success');
     document.getElementById('editFarCFrame').value = '';
     document.getElementById('editSkyCFrame').value = '';
+    refreshDashboardIfLoaded();
     await loadDatabaseFromGitHub();
   } catch (err) {
     showToast('Gagal menghapus: ' + err.message, 'error');
@@ -618,13 +741,49 @@ async function deleteMapFromGitHub() {
   }
 }
 
+// --- Undo Delete ---
+async function undoDelete() {
+  if (deleteHistory.length === 0) return showToast('Tidak ada yang bisa di-undo.', 'error');
+
+  const last = deleteHistory.pop();
+  const timeDiff = Date.now() - last.timestamp;
+  if (timeDiff > 5 * 60 * 1000) {
+    return showToast('Undo sudah expired (lebih dari 5 menit).', 'error');
+  }
+
+  try {
+    // Get fresh SHA
+    const freshRes = await fetch('/api/github');
+    if (!freshRes.ok) throw new Error('Gagal mengambil data terbaru.');
+    const freshData = await freshRes.json();
+
+    // Re-insert the deleted block
+    const anchor = "TeleportModule.mapSpots = {";
+    if (!freshData.content.includes(anchor)) throw new Error("Format file tidak dikenali.");
+
+    const restored = freshData.content.replace(anchor, anchor + "\n    " + last.block + ",");
+
+    const postRes = await fetch('/api/github', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ content: restored, sha: freshData.sha, message: `Undo: Restore Map [${last.mapName}]` })
+    });
+
+    if (!postRes.ok) throw new Error('Gagal undo.');
+
+    showToast(`Map "${last.mapName}" berhasil di-restore!`, 'success');
+    refreshDashboardIfLoaded();
+    await loadDatabaseFromGitHub();
+  } catch (err) {
+    showToast('Gagal undo: ' + err.message, 'error');
+  }
+}
+
 // --- Quick Add from Extractor ---
 function quickAddCFrame(cframeText) {
-  // Switch to Import view
   const importMenuItem = document.getElementById('menu-import');
   switchView('import', importMenuItem);
 
-  // Auto-fill the Far CFrame field (most common use case)
   const farCheck = document.getElementById('checkAddFar');
   const skyCheck = document.getElementById('checkAddSky');
 
@@ -633,7 +792,6 @@ function quickAddCFrame(cframeText) {
     toggleAddInputs();
   }
 
-  // Fill the first empty CFrame field
   const farInput = document.getElementById('addFarCFrame');
   const skyInput = document.getElementById('addSkyCFrame');
 
@@ -662,7 +820,7 @@ async function fetchLastUpdate() {
         hour: '2-digit', minute: '2-digit'
       });
       document.getElementById('dashLastUpdateText').textContent =
-        `Terakhir diperbarui: ${formatted} — ${data.message || ''}`;
+        `Terakhir diperbarui: ${formatted} \u2014 ${data.message || ''}`;
     }
   } catch (e) {
     console.warn('Gagal mengambil info terakhir:', e);
@@ -691,6 +849,6 @@ async function checkServerStatus() {
 // --- Auto Init ---
 document.addEventListener('DOMContentLoaded', () => {
   checkServerStatus();
-  setInterval(checkServerStatus, 30000); // Check every 30s
-  loadDashboard(); // Auto-load dashboard
+  setInterval(checkServerStatus, 30000);
+  loadDashboard();
 });

@@ -117,10 +117,16 @@
     </div>
 
     <!-- Load Button -->
-    <button class="btn btn-primary" onclick="loadDashboard()" id="btnLoadDash" style="margin-bottom: 24px;">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      Muat Dashboard
-    </button>
+    <div class="dash-actions">
+      <button class="btn btn-primary" onclick="loadDashboard()" id="btnLoadDash" style="flex:1;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Muat Dashboard
+      </button>
+      <button class="btn btn-secondary" onclick="exportDatabase()" title="Download tp.lua">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+    </div>
 
     <!-- Filter & Search Toolbar -->
     <div class="dash-toolbar" id="dashToolbar" style="display: none;">
@@ -130,9 +136,17 @@
         <button class="dash-filter" data-filter="partial" onclick="setDashFilter('partial', this)">&#9679; Sebagian</button>
         <button class="dash-filter" data-filter="missing" onclick="setDashFilter('missing', this)">&#10005; Belum</button>
       </div>
-      <div class="dash-search-wrapper">
-        <svg class="dash-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" class="dash-search" id="dashSearch" placeholder="Cari map..." oninput="filterDashGrid()">
+      <div class="dash-right-tools">
+        <select class="dash-sort" id="dashSort" onchange="setDashSort(this.value)">
+          <option value="name">A-Z</option>
+          <option value="name-desc">Z-A</option>
+          <option value="status">Status ↑</option>
+          <option value="status-desc">Status ↓</option>
+        </select>
+        <div class="dash-search-wrapper">
+          <svg class="dash-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="dash-search" id="dashSearch" placeholder="Cari map... (Ctrl+K)" oninput="filterDashGrid()">
+        </div>
       </div>
     </div>
 
