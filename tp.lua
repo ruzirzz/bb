@@ -155,7 +155,7 @@ function TeleportModule.GetCurrentMap()
 end
 
 function TeleportModule.HasMapData(mapName)
-    return TeleportModule.mapSpots[mapName] ~= nil  -- <-- SEKARANG BENAR
+    return TeleportModule.mapSpots[mapName] ~= nil
 end
 
 function TeleportModule.GetMapSpot(mapName, spotType)
